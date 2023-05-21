@@ -4,11 +4,98 @@
 package com.example;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
+
+import java.util.Arrays;
+import java.util.List;
+import java.util.stream.Stream;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 class AppTest {
-    @Test void appHasAGreeting() {
-        App classUnderTest = new App();
-        assertNotNull(classUnderTest.getGreeting(), "app should have a greeting");
+    @Test
+    public void emptyIterator() {
+        SuperIterator superIterator = new SuperIterator(List.of(new TestIterator(List.of())));
+        assertFalse(superIterator.hasNext());
+        assertThrows(IllegalStateException.class, superIterator::next);
+    }
+
+    @Test
+    public void nullInConstructor() {
+        SuperIterator superIterator = new SuperIterator(null);
+        assertFalse(superIterator.hasNext());
+        assertThrows(IllegalStateException.class, superIterator::next);
+    }
+
+    @Test
+    public void constantIteratorTest() {
+        Iterator testNegativeIterator = new TestIterator(List.of(-3, -2, -1));
+        Iterator testIterator = new TestIterator(List.of(1, 2, 3));
+        Iterator constIterator = new ConstantIterator();
+
+        SuperIterator superIterator = new SuperIterator(List.of(testNegativeIterator, testIterator, constIterator));
+        assertEquals(-3, superIterator.next());
+        assertEquals(-2, superIterator.next());
+        assertEquals(-1, superIterator.next());
+
+        for (int i = 0; i < 1000; i++) {
+            assertTrue(superIterator.hasNext());
+            assertEquals(0, superIterator.next());
+        }
+    }
+
+    @ParameterizedTest
+    @MethodSource
+    public void testSuperIterator(TestData testData) {
+        List<Integer> expectedValues = testData.getExpectedValues();
+        SuperIterator superIterator = new SuperIterator(testData.getIterators());
+        for (Integer expectedValue : expectedValues) {
+            if (superIterator.hasNext()) {
+                int actual = superIterator.next();
+                assertEquals(expectedValue, actual);
+            }
+        }
+        assertFalse(superIterator.hasNext());
+        assertThrows(IllegalStateException.class, superIterator::next);
+    }
+
+    public static Stream<TestData> testSuperIterator() {
+        return Stream.of(
+                TestData.of(
+                        "Empty iterator test",
+                        List.of(1, 2, 3),
+                        List.of(
+                                TestIterator.of(1, 2, 3),
+                                TestIterator.of())),
+                TestData.of(
+                        "Null iterator test",
+                        List.of(1, 2, 3),
+                        Arrays.asList(
+                                TestIterator.of(1, 2, 3),
+                                null)),
+                TestData.of(
+                        "Positive example test",
+                        List.of(1, 2, 4, 5, 45, 67, 105, 345),
+                        List.of(
+                                TestIterator.of(1, 5, 45, 345),
+                                TestIterator.of(2, 4, 67, 105))),
+                TestData.of(
+                        "Different iterators size",
+                        List.of(1, 2, 4, 5, 45, 67, 105, 345),
+                        List.of(
+                                TestIterator.of(1, 5, 45),
+                                TestIterator.of(345),
+                                TestIterator.of(2, 4),
+                                TestIterator.of(67, 105))),
+                TestData.of(
+                        "Same values from different iterators",
+                        List.of(1, 2, 2, 3, 3, 4, 5),
+                        List.of(
+                                TestIterator.of(2, 5),
+                                TestIterator.of(4),
+                                TestIterator.of(2, 3),
+                                TestIterator.of(1, 3)))
+        );
     }
 }
